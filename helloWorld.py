@@ -38,8 +38,9 @@ for i in range (10000):
     #setFrontRightVelocity(p, quadruped, 2)
     #setFrontLeftVelocity(p, quadruped, 20)
     #setBackRightVelocity(p, quadruped, 5)
-    setBackLeftVelocity(p, quadruped, 10)
-
+    #setBackLeftVelocity(p, quadruped, 10)
+    p.setJointMotorControl2(quadruped, 1, p.POSITION_CONTROL, targetPosition=2*np.pi if int(i/100)%2 else np.pi)
+    #pos, orient = p.getBasePositionAndOrientation(quadruped)
     p.stepSimulation()
     time.sleep(1./240.)
 cubePos, cubeOrn = p.getBasePositionAndOrientation(quadruped)
