@@ -1,6 +1,25 @@
 import pybullet as p
 import time
 import pybullet_data
+import numpy as np
+
+def setFrontRightVelocity(p, q, v):
+    p.setJointMotorControl2(q, 1, p.VELOCITY_CONTROL, targetVelocity=v)
+    p.setJointMotorControl2(q, 4, p.VELOCITY_CONTROL, targetVelocity=-v)
+
+def setFrontLeftVelocity(p, q, v):
+    p.setJointMotorControl2(q, 14, p.VELOCITY_CONTROL, targetVelocity=v)
+    p.setJointMotorControl2(q, 17, p.VELOCITY_CONTROL, targetVelocity=-v)
+
+def setBackRightVelocity(p, q, v):
+    p.setJointMotorControl2(q, 10, p.VELOCITY_CONTROL, targetVelocity=v)
+    p.setJointMotorControl2(q, 7, p.VELOCITY_CONTROL, targetVelocity=-v)
+
+def setBackLeftVelocity(p, q, v):
+    p.setJointMotorControl2(q, 20, p.VELOCITY_CONTROL, targetVelocity=v)
+    p.setJointMotorControl2(q, 23, p.VELOCITY_CONTROL, targetVelocity=-v)
+
+
 physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
 p.setAdditionalSearchPath(pybullet_data.getDataPath()) #optionally
 p.setGravity(0,0,-10)
@@ -16,8 +35,11 @@ for i in range(nJ):
     print('Join info: ',p.getJointInfo(quadruped, i))
 
 for i in range (10000):
-    for j in range(nJ):
-        p.setJointMotorControl2(quadruped, j, p.VELOCITY_CONTROL, targetVelocity=20)
+    #setFrontRightVelocity(p, quadruped, 2)
+    #setFrontLeftVelocity(p, quadruped, 20)
+    #setBackRightVelocity(p, quadruped, 5)
+    setBackLeftVelocity(p, quadruped, 10)
+
     p.stepSimulation()
     time.sleep(1./240.)
 cubePos, cubeOrn = p.getBasePositionAndOrientation(quadruped)
