@@ -62,6 +62,7 @@ for i in range (10000):
     setBackRightPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100 + np.pi/4))
     p.stepSimulation()
     time.sleep(1./240.)
+
 cubePos, cubeOrn = p.getBasePositionAndOrientation(quadruped)
 print(cubePos, cubeOrn)
 p.disconnect()
