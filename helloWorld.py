@@ -2,6 +2,7 @@ import pybullet as p
 import time
 import pybullet_data
 import numpy as np
+import MHutils as mh
 
 def setFrontRightVelocity(p, q, v):
     p.setJointMotorControl2(q, 1, p.VELOCITY_CONTROL, targetVelocity=v)
@@ -35,6 +36,14 @@ def setBackLeftPosition(p, q, pos, max_v = 10):
     p.setJointMotorControl2(q, 20, p.POSITION_CONTROL, targetPosition=pos, maxVelocity=max_v)
     p.setJointMotorControl2(q, 23, p.POSITION_CONTROL, targetPosition=-pos, maxVelocity=max_v)
 
+def getReward(prev_pos, current_pos, orientation):
+    reward = 0
+    reward += (current_pos[1] - prev_pos[1])*5
+    reward -= abs(current_pos[0]) + abs(current_pos[2])
+    return reward
+
+def getState(p, q):
+    pass
 
 
 physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
@@ -49,20 +58,25 @@ quadruped = p.loadURDF("quadruped/minitaur.urdf", [0, 0, 0.4],
 nJ = p.getNumJoints(quadruped)
 print('No of joints: ', p.getNumJoints(quadruped))
 for i in range(nJ):
-    print('Join info: ', p.getJointInfo(quadruped, i))
+    print('Joint info: ', p.getJointInfo(quadruped, i))
 print('No of constraints: ', p.getNumConstraints())
 #p.resetBasePositionAndOrientation(quadruped, [0, 0, 0], [0, 1, 0, 0])
+prev_pos, orient = p.getBasePositionAndOrientation(quadruped)
+print(mh.quantize(p.getJointInfo(quadruped, 1)[-2]))
+#input()
 for i in range (10000):
-    #pos, orient = p.getBasePositionAndOrientation(quadruped)
-    position = (np.pi / 3) * np.sin((2 * np.pi / 100) * i)
-    print('Pos: ',position * 180 / np.pi)
-    setFrontRightPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100))
-    setFrontLeftPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100 + np.pi/4))
-    setBackLeftPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100))
-    setBackRightPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100 + np.pi/4))
+    # pos, orient = p.getBasePositionAndOrientation(quadruped)
+    # setFrontRightPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100))
+    # setFrontLeftPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100 + np.pi/4))
+    # setBackLeftPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100))
+    # setBackRightPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100 + np.pi/4))
+    current_pos, orient = p.getBasePositionAndOrientation(quadruped)
+    reward = getReward(prev_pos, current_pos, orient)
+    print('Pos and Ornt: ', prev_pos, current_pos, orient)
+    print('Reward: ', reward)
+    prev_pos = current_pos
     p.stepSimulation()
     time.sleep(1./240.)
 
-cubePos, cubeOrn = p.getBasePositionAndOrientation(quadruped)
-print(cubePos, cubeOrn)
+print(current_pos, orient)
 p.disconnect()
