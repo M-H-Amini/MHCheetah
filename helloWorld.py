@@ -78,7 +78,8 @@ def lockKnees(p, q, pos, max_v = 10, mode = 0):
 def getReward(prev_pos, current_pos, orientation):
     reward = 0
     reward += (current_pos[1] - prev_pos[1])*5
-    reward -= abs(current_pos[0]) + abs(current_pos[2])
+    reward -= abs(current_pos[0] - prev_pos[0])
+    reward -= abs(current_pos[2] - prev_pos[2])
     return reward
 
 def resetEpisode(p, q):
