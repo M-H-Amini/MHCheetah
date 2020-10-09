@@ -81,6 +81,9 @@ def getReward(prev_pos, current_pos, orientation):
     reward -= abs(current_pos[0]) + abs(current_pos[2])
     return reward
 
+def resetEpisode(p, q):
+    p.resetBasePositionAndOrientation(q, [0, 0, 0.4], [1, 1, 0, 0])
+
 def getState(p, q):
     pass
 
@@ -99,7 +102,7 @@ print('No of joints: ', p.getNumJoints(quadruped))
 for i in range(nJ):
     print('Joint info: ', p.getJointInfo(quadruped, i))
 print('No of constraints: ', p.getNumConstraints())
-#p.resetBasePositionAndOrientation(quadruped, [0, 0, 0], [0, 1, 0, 0])
+#p.resetBasePositionAndOrientation(quadruped, [0, 0, 0.4], [1, 1, 0, 0])
 prev_pos, orient = p.getBasePositionAndOrientation(quadruped)
 print(mh.quantize(p.getJointInfo(quadruped, 1)[-2]))
 #input()
@@ -109,6 +112,8 @@ for i in range (10000):
     # setFrontLeftPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100 + np.pi/4))
     # setBackLeftPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100))
     # setBackRightPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100 + np.pi/4))
+    if not (i%1000):
+        resetEpisode(p, quadruped)
     lockKnees(p, quadruped, np.pi/6, mode=1)
     current_pos, orient = p.getBasePositionAndOrientation(quadruped)
     reward = getReward(prev_pos, current_pos, orient)
