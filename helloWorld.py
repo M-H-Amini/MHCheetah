@@ -36,6 +36,45 @@ def setBackLeftPosition(p, q, pos, max_v = 10):
     p.setJointMotorControl2(q, 20, p.POSITION_CONTROL, targetPosition=pos, maxVelocity=max_v)
     p.setJointMotorControl2(q, 23, p.POSITION_CONTROL, targetPosition=-pos, maxVelocity=max_v)
 
+def lockKnees(p, q, pos, max_v = 10, mode = 0):
+    '''
+        mode = 0: All knees the same!
+        mode = 1: Symmetric knees! Fat way!
+        mode = 2: Symmetric knees! Thin way!
+    '''
+    if mode==0:
+        right_knees = [3, 9, 19, 25]
+        left_knees = [6, 12, 16, 22]
+        for rk, lk in zip(right_knees, left_knees):
+            p.setJointMotorControl2(q, rk, p.POSITION_CONTROL, targetPosition=pos ,maxVelocity=10)
+            p.setJointMotorControl2(q, lk, p.POSITION_CONTROL, targetPosition=-pos ,maxVelocity=10)
+    elif mode==1:
+        right_front_knees = [3, 19]
+        left_front_knees = [6, 16]
+        right_back_knees = [9, 25]
+        left_back_knees = [12, 22]
+        for rk, lk in zip(right_front_knees, left_front_knees):
+            p.setJointMotorControl2(q, rk, p.POSITION_CONTROL, targetPosition=pos ,maxVelocity=10)
+            p.setJointMotorControl2(q, lk, p.POSITION_CONTROL, targetPosition=-pos ,maxVelocity=10)
+        for rk, lk in zip(right_back_knees, left_back_knees):
+            p.setJointMotorControl2(q, rk, p.POSITION_CONTROL, targetPosition=-pos ,maxVelocity=10)
+            p.setJointMotorControl2(q, lk, p.POSITION_CONTROL, targetPosition=+pos ,maxVelocity=10)
+
+    elif mode==2:
+        right_front_knees = [3, 19]
+        left_front_knees = [6, 16]
+        right_back_knees = [9, 25]
+        left_back_knees = [12, 22]
+        for rk, lk in zip(right_front_knees, left_front_knees):
+            p.setJointMotorControl2(q, rk, p.POSITION_CONTROL, targetPosition=-pos ,maxVelocity=10)
+            p.setJointMotorControl2(q, lk, p.POSITION_CONTROL, targetPosition=pos ,maxVelocity=10)
+        for rk, lk in zip(right_back_knees, left_back_knees):
+            p.setJointMotorControl2(q, rk, p.POSITION_CONTROL, targetPosition=pos ,maxVelocity=10)
+            p.setJointMotorControl2(q, lk, p.POSITION_CONTROL, targetPosition=-pos ,maxVelocity=10)
+
+
+
+
 def getReward(prev_pos, current_pos, orientation):
     reward = 0
     reward += (current_pos[1] - prev_pos[1])*5
@@ -70,10 +109,11 @@ for i in range (10000):
     # setFrontLeftPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100 + np.pi/4))
     # setBackLeftPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100))
     # setBackRightPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100 + np.pi/4))
+    lockKnees(p, quadruped, np.pi/6, mode=1)
     current_pos, orient = p.getBasePositionAndOrientation(quadruped)
     reward = getReward(prev_pos, current_pos, orient)
-    print('Pos and Ornt: ', prev_pos, current_pos, orient)
-    print('Reward: ', reward)
+    #print('Pos and Ornt: ', prev_pos, current_pos, orient)
+    #print('Reward: ', reward)
     prev_pos = current_pos
     p.stepSimulation()
     time.sleep(1./240.)
