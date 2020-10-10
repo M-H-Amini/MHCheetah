@@ -1,6 +1,7 @@
 import pybullet as p
 import time
 import pybullet_data
+import keras
 import numpy as np
 import MHutils as mh
 
@@ -86,7 +87,7 @@ def getState(p, q, angles):
     state = []
     state = state + list(p.getJointInfo(q, 0)[-2])
     state = state + list(angles.values())
-    return state
+    return np.array(state)
 
 def setLegs(p, q, angles):
     setFrontRightPosition(p, q, angles['rf'])
@@ -104,6 +105,22 @@ def act(i):
     elif 15<=i<=19:
         angles['lb'] = -(np.pi/2) + (i-15) * np.pi/4
 
+def epsilonGreedy(state, eps=0.1):
+    n = np.random.rand()
+    if n>eps:
+        qs = model.predict(state[np.newaxis, :])
+        action = np.max(qs[0])
+        return action
+    else:
+        return np.random.randint(0, 20)
+
+##  Neural Net...
+model = keras.Sequential()
+model.add(keras.layers.Dense(14, activation='sigmoid', input_shape=(7,)))
+model.add(keras.layers.Dense(20, activation='linear'))
+model.compile(loss='mse', optimizer='adam')
+
+##  Simulator
 physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
 p.setAdditionalSearchPath(pybullet_data.getDataPath()) #optionally
 p.setGravity(0,0,-10)
@@ -126,6 +143,9 @@ prev_pos, orient = p.getBasePositionAndOrientation(quadruped)
 print(mh.quantize(p.getJointInfo(quadruped, 1)[-2]))
 getState(p, quadruped, angles)
 setLegs(p, quadruped, angles)
+hist_reward = []
+hist_state = []
+hist_action = []
 
 for i in range (10000):
     # pos, orient = p.getBasePositionAndOrientation(quadruped)
@@ -137,14 +157,18 @@ for i in range (10000):
         resetEpisode(p, quadruped)
     lockKnees(p, quadruped, np.pi/6, mode=1)
 
-    if not(i%10):
-        act(np.random.randint(0, 20))
-        setLegs(p, quadruped, angles)
     current_pos, orient = p.getBasePositionAndOrientation(quadruped)
     reward = getReward(prev_pos, current_pos, orient)
     #print('Pos and Ornt: ', prev_pos, current_pos, orient)
     #print('Reward: ', reward)
     prev_pos = current_pos
+    if not(i%10):
+        action = 
+        hist_state.append(getState(p, quadruped, angles))
+        hist_reward.append(reward)
+        hist_action.append(action)
+        act(np.random.randint(0, 20))
+        setLegs(p, quadruped, angles)
     p.stepSimulation()
     time.sleep(1./240.)
 
