@@ -112,6 +112,13 @@ def isFallen(p, q):
         return True
     return False
 
+def setEpsilon(i, mode='exploration'):
+    if mode=='explore' or mode=='exploration' or mode==0:
+        eps = 0.2 + 0.8 * np.exp(-i/5000)
+    if mode=='exploit' or mode=='exploitation' or mode==1:
+        eps = 0.1
+    return eps
+
 def epsilonGreedy(state, eps=0.1):
     # print('epsilon greedy: ')
     n = np.random.rand()
@@ -206,7 +213,7 @@ for i in range (50000):
         current_pos, orient = p.getBasePositionAndOrientation(quadruped)
         reward = getReward(prev_pos, current_pos, orient)
         prev_pos = current_pos
-        eps = 0.2 + 0.8 * np.exp(-i/5000)
+        eps = setEpsilon(i, 1)
         print('eps: ', eps)
         action = epsilonGreedy(state, eps)
         act(action)
