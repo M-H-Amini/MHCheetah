@@ -94,6 +94,15 @@ def setLegs(p, q, angles):
     setBackRightPosition(p, q, angles['rb'])
     setBackLeftPosition(p, q, angles['lb'])
     
+def act(i):
+    if 0<=i<=4:
+        angles['rf'] = -(np.pi/2) + i * np.pi/4
+    elif 5<=i<=9:
+        angles['lf'] = -(np.pi/2) + (i-5) * np.pi/4
+    elif 10<=i<=14:
+        angles['rb'] = -(np.pi/2) + (i-10) * np.pi/4
+    elif 15<=i<=19:
+        angles['lb'] = -(np.pi/2) + (i-15) * np.pi/4
 
 physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
 p.setAdditionalSearchPath(pybullet_data.getDataPath()) #optionally
@@ -117,7 +126,7 @@ prev_pos, orient = p.getBasePositionAndOrientation(quadruped)
 print(mh.quantize(p.getJointInfo(quadruped, 1)[-2]))
 getState(p, quadruped, angles)
 setLegs(p, quadruped, angles)
-input()
+
 for i in range (10000):
     # pos, orient = p.getBasePositionAndOrientation(quadruped)
     # setFrontRightPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100))
@@ -127,6 +136,10 @@ for i in range (10000):
     if not (i%1000):
         resetEpisode(p, quadruped)
     lockKnees(p, quadruped, np.pi/6, mode=1)
+
+    if not(i%10):
+        act(np.random.randint(0, 20))
+        setLegs(p, quadruped, angles)
     current_pos, orient = p.getBasePositionAndOrientation(quadruped)
     reward = getReward(prev_pos, current_pos, orient)
     #print('Pos and Ornt: ', prev_pos, current_pos, orient)
