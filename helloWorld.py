@@ -82,9 +82,18 @@ def getReward(prev_pos, current_pos, orientation):
 def resetEpisode(p, q):
     p.resetBasePositionAndOrientation(q, [0, 0, 0.4], [1, 1, 0, 0])
 
-def getState(p, q):
-    pass
+def getState(p, q, angles):
+    state = []
+    state = state + list(p.getJointInfo(q, 0)[-2])
+    # state = state + list(p.getJointInfo(q, ))
+    print('State: ', state)
 
+def setLegs(p, q, angles):
+    setFrontRightPosition(p, q, angles['rf'])
+    setFrontLeftPosition(p, q, angles['lf'])
+    setBackRightPosition(p, q, angles['rb'])
+    setBackLeftPosition(p, q, angles['lb'])
+    
 
 physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
 p.setAdditionalSearchPath(pybullet_data.getDataPath()) #optionally
@@ -95,6 +104,9 @@ cubeStartOrientation = p.getQuaternionFromEuler([0,0,0])
 quadruped = p.loadURDF("quadruped/minitaur.urdf", [0, 0, 0.4],
                [1, 1, 0, 0],
                useFixedBase=False)
+
+angles = {'rf': 0, 'lf': 0, 'rb': 0, 'lb': 0}
+
 nJ = p.getNumJoints(quadruped)
 print('No of joints: ', p.getNumJoints(quadruped))
 for i in range(nJ):
@@ -103,7 +115,9 @@ print('No of constraints: ', p.getNumConstraints())
 #p.resetBasePositionAndOrientation(quadruped, [0, 0, 0.4], [1, 1, 0, 0])
 prev_pos, orient = p.getBasePositionAndOrientation(quadruped)
 print(mh.quantize(p.getJointInfo(quadruped, 1)[-2]))
-#input()
+getState(p, quadruped, angles)
+setLegs(p, quadruped, angles)
+input()
 for i in range (10000):
     # pos, orient = p.getBasePositionAndOrientation(quadruped)
     # setFrontRightPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100))
