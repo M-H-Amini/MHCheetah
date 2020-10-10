@@ -3,6 +3,7 @@ import time
 import pybullet_data
 import keras
 import numpy as np
+import os
 import MHutils as mh
 
 def setFrontRightVelocity(p, q, v):
@@ -77,12 +78,13 @@ def lockKnees(p, q, pos, max_v = 10, mode = 0):
 def getReward(prev_pos, current_pos, orientation):
     reward = 0
     reward += (current_pos[1] - prev_pos[1])*5
-    reward -= abs(current_pos[0] - prev_pos[0])
+    if (abs(current_pos[0]) - 0.5) > 0:
+        reward -= (abs(current_pos[0]) - 0.5)
     return reward
 
 def resetEpisode(p, q):
     p.resetBasePositionAndOrientation(q, [0, 0, 0.4], [1, 1, 0, 0])
-
+    
 def getState(p, q, angles):
     state = []
     state = state + list(p.getJointInfo(q, 0)[-2])
@@ -105,20 +107,54 @@ def act(i):
     elif 15<=i<=19:
         angles['lb'] = -(np.pi/2) + (i-15) * np.pi/4
 
+def isFallen(p, q):
+    if p.getBasePositionAndOrientation(q)[0][2] < 0.1:
+        return True
+    return False
+
 def epsilonGreedy(state, eps=0.1):
+    # print('epsilon greedy: ')
     n = np.random.rand()
+    # print('n: ', n)
     if n>eps:
+        # print('state: ', state[np.newaxis, :], state[np.newaxis, :].shape)
         qs = model.predict(state[np.newaxis, :])
-        action = np.max(qs[0])
+        # print('qs: ', qs)
+        action = np.argmax(qs[0])
         return action
     else:
         return np.random.randint(0, 20)
 
+def trainModel():
+    print('trainModel: ')
+    for i in range(len(hist_state)):
+        ret = sum(hist_reward[i+1:])
+        print('ret: ', ret)
+        print('len: ', len(hist_state), i)
+        #input()
+        for j in range(10):
+            target = model.predict(hist_state[i][np.newaxis, :])
+            #print('target before: ', target)
+            target[0, hist_action[i]] = ret
+            #print('target after: ', target)
+            model.train_on_batch(hist_state[i][np.newaxis, :], target[0])
+    model.save('M1')
+
+def loadModel(name):
+    if name is not None and os.path.isdir(name):
+        model = keras.models.load_model(name)
+        print('Model loaded...')
+        return model
+    else:
+        print('Model created...')
+        model = keras.Sequential()
+        model.add(keras.layers.Dense(14, activation='sigmoid', input_shape=(8,)))
+        model.add(keras.layers.Dense(20, activation='linear'))
+        model.compile(loss='mse', optimizer='adam')
+        return model
+
 ##  Neural Net...
-model = keras.Sequential()
-model.add(keras.layers.Dense(14, activation='sigmoid', input_shape=(7,)))
-model.add(keras.layers.Dense(20, activation='linear'))
-model.compile(loss='mse', optimizer='adam')
+model = loadModel('M1')
 
 ##  Simulator
 physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
@@ -147,28 +183,38 @@ hist_reward = []
 hist_state = []
 hist_action = []
 
-for i in range (10000):
+for i in range (50000):
     # pos, orient = p.getBasePositionAndOrientation(quadruped)
     # setFrontRightPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100))
     # setFrontLeftPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100 + np.pi/4))
     # setBackLeftPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100))
     # setBackRightPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100 + np.pi/4))
-    if not (i%1000):
+    #if i>0 and (not (i%1000)):
+    if isFallen(p, quadruped):
+        print('here')
+        trainModel()
         resetEpisode(p, quadruped)
-    lockKnees(p, quadruped, np.pi/6, mode=1)
+        hist_action = []
+        hist_reward = []
+        hist_state = []
+        print('lens: ', len(hist_state), len(hist_action), len(hist_reward))
+        
 
-    current_pos, orient = p.getBasePositionAndOrientation(quadruped)
-    reward = getReward(prev_pos, current_pos, orient)
-    #print('Pos and Ornt: ', prev_pos, current_pos, orient)
-    #print('Reward: ', reward)
-    prev_pos = current_pos
+    lockKnees(p, quadruped, np.pi/6, mode=1)
     if not(i%10):
-        action = 
-        hist_state.append(getState(p, quadruped, angles))
-        hist_reward.append(reward)
-        hist_action.append(action)
-        act(np.random.randint(0, 20))
+        state = getState(p, quadruped, angles)
+        current_pos, orient = p.getBasePositionAndOrientation(quadruped)
+        reward = getReward(prev_pos, current_pos, orient)
+        prev_pos = current_pos
+        eps = 0.2 + 0.8 * np.exp(-i/5000)
+        print('eps: ', eps)
+        action = epsilonGreedy(state, eps)
+        act(action)
         setLegs(p, quadruped, angles)
+        hist_state.append(state)
+        hist_action.append(action)
+        hist_reward.append(reward)
+
     p.stepSimulation()
     time.sleep(1./240.)
 
