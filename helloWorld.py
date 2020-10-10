@@ -85,8 +85,8 @@ def resetEpisode(p, q):
 def getState(p, q, angles):
     state = []
     state = state + list(p.getJointInfo(q, 0)[-2])
-    # state = state + list(p.getJointInfo(q, ))
-    print('State: ', state)
+    state = state + list(angles.values())
+    return state
 
 def setLegs(p, q, angles):
     setFrontRightPosition(p, q, angles['rf'])
