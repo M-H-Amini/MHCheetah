@@ -76,10 +76,14 @@ def lockKnees(p, q, pos, max_v = 10, mode = 0):
 
 
 def getReward(prev_pos, current_pos, orientation):
+    '''
     reward = 0
     reward += (current_pos[1] - prev_pos[1])*5
     if (abs(current_pos[0]) - 0.5) > 0:
         reward -= (abs(current_pos[0]) - 0.5)
+    '''
+    ##  Reward for jumping...
+    reward = current_pos[2] - 0.3
     return reward
 
 def resetEpisode(p, q):
@@ -161,8 +165,8 @@ def loadModel(name):
         return model
 
 ##  Neural Net...
-model = loadModel('M1')
-
+model = loadModel('M2')
+time.sleep(2)
 ##  Simulator
 physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
 p.setAdditionalSearchPath(pybullet_data.getDataPath()) #optionally
