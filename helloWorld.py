@@ -116,11 +116,14 @@ def isFallen(p, q):
         return True
     return False
 
-def setEpsilon(i, mode='exploration'):
+def setEpsilon(i, mode='exploration', *args):
     if mode=='explore' or mode=='exploration' or mode==0:
         eps = 0.2 + 0.8 * np.exp(-i/5000)
     if mode=='exploit' or mode=='exploitation' or mode==1:
-        eps = 0.1
+        if not len(args):
+            eps = 0.1
+        else:
+            eps = args[0]
     return eps
 
 def epsilonGreedy(state, eps=0.1):
@@ -145,12 +148,15 @@ def trainModel(discount=1.):
         print('ret: ', ret)
         print('len: ', len(hist_state), i)
         #input()
+        target = model.predict(hist_state[i][np.newaxis, :])
+        # print('target before: ', target)
+        target[0, hist_action[i]] = ret
+        # print('target after: ', target)
         for j in range(10):
-            target = model.predict(hist_state[i][np.newaxis, :])
-            #print('target before: ', target)
-            target[0, hist_action[i]] = ret
-            #print('target after: ', target)
+            #target = np.ones((1, 20)) * 2.
             model.train_on_batch(hist_state[i][np.newaxis, :], target[0])
+    print('Predictions: ')
+    print(model.predict(hist_state[np.random.randint(0, len(hist_state))][np.newaxis, :]))
     model.save('M1')
 
 def loadModel(name):
@@ -196,7 +202,7 @@ hist_reward = []
 hist_state = []
 hist_action = []
 
-for i in range (500000):
+for i in range (50000):
     # pos, orient = p.getBasePositionAndOrientation(quadruped)
     # setFrontRightPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100))
     # setFrontLeftPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100 + np.pi/4))
@@ -205,7 +211,7 @@ for i in range (500000):
     #if i>0 and (not (i%1000)):
     if isFallen(p, quadruped):
         print('here')
-        trainModel()
+        trainModel(0.9)
         resetEpisode(p, quadruped)
         hist_action = []
         hist_reward = []
@@ -219,7 +225,7 @@ for i in range (500000):
         current_pos, orient = p.getBasePositionAndOrientation(quadruped)
         reward = getReward(prev_pos, current_pos, orient)
         prev_pos = current_pos
-        eps = setEpsilon(i, 0)
+        eps = setEpsilon(i, 1, 0.3)
         print('eps: ', eps)
         action = epsilonGreedy(state, eps)
         act(action)
