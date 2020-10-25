@@ -136,10 +136,12 @@ def epsilonGreedy(state, eps=0.1):
     else:
         return np.random.randint(0, 20)
 
-def trainModel():
+def trainModel(discount=1.):
     print('trainModel: ')
     for i in range(len(hist_state)):
-        ret = sum(hist_reward[i+1:])
+        discounted_rewards = [hist_reward[j] * (discount**(j-(i+1))) for j in range(i+1, len(hist_reward))]
+        ret = sum(discounted_rewards)
+
         print('ret: ', ret)
         print('len: ', len(hist_state), i)
         #input()
@@ -165,7 +167,7 @@ def loadModel(name):
         return model
 
 ##  Neural Net...
-model = loadModel('M2')
+model = loadModel('M1')
 time.sleep(2)
 ##  Simulator
 physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
@@ -194,7 +196,7 @@ hist_reward = []
 hist_state = []
 hist_action = []
 
-for i in range (50000):
+for i in range (500000):
     # pos, orient = p.getBasePositionAndOrientation(quadruped)
     # setFrontRightPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100))
     # setFrontLeftPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100 + np.pi/4))
@@ -217,7 +219,7 @@ for i in range (50000):
         current_pos, orient = p.getBasePositionAndOrientation(quadruped)
         reward = getReward(prev_pos, current_pos, orient)
         prev_pos = current_pos
-        eps = setEpsilon(i, 1)
+        eps = setEpsilon(i, 0)
         print('eps: ', eps)
         action = epsilonGreedy(state, eps)
         act(action)
