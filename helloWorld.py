@@ -83,7 +83,7 @@ def getReward(prev_pos, current_pos, orientation):
         reward -= (abs(current_pos[0]) - 0.5)
     '''
     ##  Reward for jumping...
-    reward = current_pos[2] - 0.3
+    reward = (current_pos[2] - 0.3)*10
     return reward
 
 def resetEpisode(p, q):
@@ -112,7 +112,7 @@ def act(i):
         angles['lb'] = -(np.pi/2) + (i-15) * np.pi/4
 
 def isFallen(p, q):
-    if p.getBasePositionAndOrientation(q)[0][2] < 0.1:
+    if p.getBasePositionAndOrientation(q)[0][2] < 0.13:
         return True
     return False
 
@@ -168,6 +168,7 @@ def loadModel(name):
         print('Model created...')
         model = keras.Sequential()
         model.add(keras.layers.Dense(14, activation='sigmoid', input_shape=(8,)))
+        model.add(keras.layers.Dense(8, activation='sigmoid'))
         model.add(keras.layers.Dense(20, activation='linear'))
         model.compile(loss='mse', optimizer='adam')
         return model
@@ -195,22 +196,25 @@ for i in range(nJ):
 print('No of constraints: ', p.getNumConstraints())
 #p.resetBasePositionAndOrientation(quadruped, [0, 0, 0.4], [1, 1, 0, 0])
 prev_pos, orient = p.getBasePositionAndOrientation(quadruped)
-print(mh.quantize(p.getJointInfo(quadruped, 1)[-2]))
+# print(mh.quantize(p.getJointInfo(quadruped, 1)[-2]))
 getState(p, quadruped, angles)
 setLegs(p, quadruped, angles)
 hist_reward = []
 hist_state = []
 hist_action = []
+episode_len = 0
+max_episode_len = 2000
 
-for i in range (50000):
+for i in range (5000000):
     # pos, orient = p.getBasePositionAndOrientation(quadruped)
     # setFrontRightPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100))
     # setFrontLeftPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100 + np.pi/4))
     # setBackLeftPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100))
     # setBackRightPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100 + np.pi/4))
     #if i>0 and (not (i%1000)):
-    if isFallen(p, quadruped):
+    if isFallen(p, quadruped) or episode_len > max_episode_len:
         print('here')
+        episode_len = 0
         trainModel(0.9)
         resetEpisode(p, quadruped)
         hist_action = []
@@ -218,15 +222,15 @@ for i in range (50000):
         hist_state = []
         print('lens: ', len(hist_state), len(hist_action), len(hist_reward))
         
-
+    episode_len += 1
     lockKnees(p, quadruped, np.pi/6, mode=1)
     if not(i%10):
         state = getState(p, quadruped, angles)
         current_pos, orient = p.getBasePositionAndOrientation(quadruped)
         reward = getReward(prev_pos, current_pos, orient)
         prev_pos = current_pos
-        eps = setEpsilon(i, 1, 0.3)
-        print('eps: ', eps)
+        eps = setEpsilon(i, 1, 0.2)
+        print('eps: ', eps, 'reward: ', reward)
         action = epsilonGreedy(state, eps)
         act(action)
         setLegs(p, quadruped, angles)
