@@ -2,9 +2,14 @@ import pybullet as p
 import time
 import pybullet_data
 import keras
+import keras.backend as kb
+from keras.layers import Input, Dense
+from keras.models import Sequential
 import numpy as np
 import os
+from functools import partial
 import MHutils as mh
+import MHModels as mhm
 
 def setFrontRightVelocity(p, q, v):
     p.setJointMotorControl2(q, 1, p.VELOCITY_CONTROL, targetVelocity=v)
@@ -90,6 +95,10 @@ def resetEpisode(p, q):
     p.resetBasePositionAndOrientation(q, [0, 0, 0.4], [1, 1, 0, 0])
     
 def getState(p, q, angles):
+    '''
+    States:
+        8 numbers: 4 numbers for orientation and 4 number for angles of 4 legs
+    '''
     state = []
     state = state + list(p.getJointInfo(q, 0)[-2])
     state = state + list(angles.values())
@@ -119,62 +128,76 @@ def isFallen(p, q):
 def setEpsilon(i, mode='exploration', *args):
     if mode=='explore' or mode=='exploration' or mode==0:
         eps = 0.2 + 0.8 * np.exp(-i/5000)
-    if mode=='exploit' or mode=='exploitation' or mode==1:
+    elif mode=='exploit' or mode=='exploitation' or mode==1:
         if not len(args):
             eps = 0.1
         else:
             eps = args[0]
+    elif mode in ['const', 'constant']:
+        eps = args[0]
     return eps
 
 def epsilonGreedy(state, eps=0.1):
     # print('epsilon greedy: ')
     n = np.random.rand()
-    # print('n: ', n)
     if n>eps:
-        # print('state: ', state[np.newaxis, :], state[np.newaxis, :].shape)
-        qs = model.predict(state[np.newaxis, :])
-        # print('qs: ', qs)
-        action = np.argmax(qs[0])
+        qs = model.predict(state[np.newaxis, :])[0, :]
+        print('qs: ', qs)
+        action = np.argmax(qs)
+        print('argmax: ', action)
         return action
     else:
-        return np.random.randint(0, 20)
+        return np.random.randint(0, 21)
 
-def trainModel(discount=1.):
+def trainModels(discount=1., model_type=1):
     print('trainModel: ')
-    for i in range(len(hist_state)):
-        discounted_rewards = [hist_reward[j] * (discount**(j-(i+1))) for j in range(i+1, len(hist_reward))]
+    targets = [list() for i in range(21)]
+    Xs = [list() for i in range(21)]
+    for i in range(len(hist_action)):
+        discounted_rewards = [hist_reward[j] * (discount**(j-i)) for j in range(i, len(hist_reward))]
         ret = sum(discounted_rewards)
 
         print('ret: ', ret)
         print('len: ', len(hist_state), i)
         #input()
-        target = model.predict(hist_state[i][np.newaxis, :])
-        # print('target before: ', target)
-        target[0, hist_action[i]] = ret
-        # print('target after: ', target)
-        for j in range(10):
-            #target = np.ones((1, 20)) * 2.
-            model.train_on_batch(hist_state[i][np.newaxis, :], target[0])
-    print('Predictions: ')
-    print(model.predict(hist_state[np.random.randint(0, len(hist_state))][np.newaxis, :]))
-    model.save('M1')
+        Xs[hist_action[i]].append(hist_state[i])
+        targets[hist_action[i]].append(ret)
 
-def loadModel(name):
-    if name is not None and os.path.isdir(name):
-        model = keras.models.load_model(name)
-        print('Model loaded...')
-        return model
-    else:
-        print('Model created...')
-        model = keras.Sequential()
-        model.add(keras.layers.Dense(14, activation='sigmoid', input_shape=(8,)))
-        model.add(keras.layers.Dense(8, activation='sigmoid'))
-        model.add(keras.layers.Dense(20, activation='linear'))
-        model.compile(loss='mse', optimizer='adam')
-        return model
+        # print('target before: ', target)
+        # print('predicted: ', target[0, hist_action[i]])
+        # target[0, hist_action[i]] = ret
+
+    Xs = [np.array(Xs[i]) for i in range(21)]
+    ys = [np.array(targets[i]) for i in range(21)]
+    print('Xs shape: ', [Xs[i].shape for i in range(21)])
+    for i in range(21):
+        if Xs[i].shape[0]:
+            processModel(model_train, i)
+            model_train.train_on_batch(Xs[i], ys[i])
+    mhm.saveModels([model], 'model')
+
+
+def processModel(model, i):
+    w = np.zeros((21, 1))
+    w[i, 0] = 1
+    model.layers[-1].set_weights([w, np.array([0])])
+    model.layers[-1].trainable = False
 
 ##  Neural Net...
-model = loadModel('M1')
+
+# model = mhm.buildModel()
+model, = mhm.loadModels('model', 1)
+model_train = Sequential([model, Dense(1)])
+model_train.compile('adam', loss='mse')
+
+'''  processModel Test
+print(model_train.layers[-1].get_weights())
+print(model_train.layers[-1].trainable)
+processModel(model_train, 2)
+print(model_train.layers[-1].get_weights())
+print(model_train.layers[-1].trainable)
+'''
+
 time.sleep(2)
 ##  Simulator
 physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
@@ -203,8 +226,9 @@ hist_reward = []
 hist_state = []
 hist_action = []
 episode_len = 0
-max_episode_len = 2000
+max_episode_len = 300
 
+prev_state = getState(p, quadruped, angles)
 for i in range (5000000):
     # pos, orient = p.getBasePositionAndOrientation(quadruped)
     # setFrontRightPosition(p, quadruped, - (np.pi/6) *  np.sin(np.pi * i / 100))
@@ -215,21 +239,23 @@ for i in range (5000000):
     if isFallen(p, quadruped) or episode_len > max_episode_len:
         print('here')
         episode_len = 0
-        trainModel(0.9)
+        trainModels(0.9, 2)
         resetEpisode(p, quadruped)
         hist_action = []
         hist_reward = []
         hist_state = []
+        prev_state = getState(p, quadruped, angles)
         print('lens: ', len(hist_state), len(hist_action), len(hist_reward))
         
     episode_len += 1
     lockKnees(p, quadruped, np.pi/6, mode=1)
     if not(i%10):
-        state = getState(p, quadruped, angles)
+        current_state = getState(p, quadruped, angles)
+        state = np.concatenate((prev_state, current_state))
         current_pos, orient = p.getBasePositionAndOrientation(quadruped)
         reward = getReward(prev_pos, current_pos, orient)
         prev_pos = current_pos
-        eps = setEpsilon(i, 1, 0.2)
+        eps = setEpsilon(i, 'const', 0.2)
         print('eps: ', eps, 'reward: ', reward)
         action = epsilonGreedy(state, eps)
         act(action)
@@ -237,6 +263,7 @@ for i in range (5000000):
         hist_state.append(state)
         hist_action.append(action)
         hist_reward.append(reward)
+        prev_state = current_state.copy()
 
     p.stepSimulation()
     time.sleep(1./240.)
