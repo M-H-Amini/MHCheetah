@@ -4,7 +4,7 @@ from keras.layers import Dense
 
 def buildModel():
     model = Sequential()
-    model.add(Dense(6, activation='tanh', input_shape=(16,)))
+    model.add(Dense(60, activation='tanh', input_shape=(11,)))
     model.add(Dense(21))
     return model
 

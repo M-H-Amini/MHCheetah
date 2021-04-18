@@ -88,7 +88,12 @@ def getReward(prev_pos, current_pos, orientation):
         reward -= (abs(current_pos[0]) - 0.5)
     '''
     ##  Reward for jumping...
-    reward = (current_pos[2] - 0.3)*10
+    orientation_reward = 10 - np.linalg.norm(np.array(orientation) - np.array([1, 1, 0, 0])) * 10
+    position_reward = 10 - np.linalg.norm(np.array(current_pos) - np.array([0, 0, 0.3])) * 10#(current_pos[2] - 0.3)*20
+    reward = orientation_reward + position_reward
+    print('OR:', orientation_reward, 'PR:', position_reward)
+    print('R: ', reward)
+    # input('here')
     return reward
 
 def resetEpisode(p, q):
@@ -97,10 +102,15 @@ def resetEpisode(p, q):
 def getState(p, q, angles):
     '''
     States:
-        8 numbers: 4 numbers for orientation and 4 number for angles of 4 legs
+        11 numbers:
+             3 numbers for position
+             4 numbers for orientation
+             4 number for angles of 4 legs
     '''
     state = []
-    state = state + list(p.getJointInfo(q, 0)[-2])
+    # state = state + list(p.getJointInfo(q, 0)[-2])
+    state = state + list(p.getBasePositionAndOrientation(q)[0])
+    state = state + list(p.getBasePositionAndOrientation(q)[1])
     state = state + list(angles.values())
     return np.array(state)
 
@@ -142,12 +152,22 @@ def epsilonGreedy(state, eps=0.1):
     n = np.random.rand()
     if n>eps:
         qs = model.predict(state[np.newaxis, :])[0, :]
-        print('qs: ', qs)
+        # print('qs: ', qs)
         action = np.argmax(qs)
-        print('argmax: ', action)
+        # print('argmax: ', action)
         return action
     else:
         return np.random.randint(0, 21)
+
+def _trainModels(Xs, ys, n=100):
+    '''
+    Planning!
+    '''
+    for _ in range(n):
+        i = np.random.randint(0, 21)
+        if Xs[i].shape[0]:
+            processModel(model_train, i)
+            model_train.train_on_batch(Xs[i], ys[i])
 
 def trainModels(discount=1., model_type=1):
     print('trainModel: ')
@@ -174,6 +194,7 @@ def trainModels(discount=1., model_type=1):
         if Xs[i].shape[0]:
             processModel(model_train, i)
             model_train.train_on_batch(Xs[i], ys[i])
+    _trainModels(Xs, ys)
     mhm.saveModels([model], 'model')
 
 
@@ -185,8 +206,8 @@ def processModel(model, i):
 
 ##  Neural Net...
 
-# model = mhm.buildModel()
-model, = mhm.loadModels('model', 1)
+model = mhm.buildModel()
+# model, = mhm.loadModels('model', 1)
 model_train = Sequential([model, Dense(1)])
 model_train.compile('adam', loss='mse')
 
@@ -248,10 +269,11 @@ for i in range (5000000):
         print('lens: ', len(hist_state), len(hist_action), len(hist_reward))
         
     episode_len += 1
-    lockKnees(p, quadruped, np.pi/6, mode=1)
+    lockKnees(p, quadruped, np.pi/6, mode=2)
     if not(i%10):
         current_state = getState(p, quadruped, angles)
-        state = np.concatenate((prev_state, current_state))
+        state = current_state.copy()
+        # state = np.concatenate((prev_state, current_state))
         current_pos, orient = p.getBasePositionAndOrientation(quadruped)
         reward = getReward(prev_pos, current_pos, orient)
         prev_pos = current_pos
